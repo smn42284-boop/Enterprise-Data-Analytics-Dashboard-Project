@@ -26,6 +26,8 @@ print(len(customers))
 missing_email = customers[customers["email"].isnull()]
 print(missing_email)
 
+inactive_customers = customers[customers["status"] == "Inactive"]
+
 duplicate_customers = customers[
     customers.duplicated(subset=["customer_name", "phone"], keep=False)
 ]
@@ -57,14 +59,6 @@ invalid_suppliers = product_vendor[product_vendor["vendor_id"].isnull()]
 inactive_supplier_products = product_vendor[
     product_vendor["status_vendor"] == "Inactive"
 ]
-## Final Reporting
-print("Missing customer emails: ", len(missing_email))
-print("Duplidated customers: ", len(duplicate_customers))
-print("Negative product prices: ", len(invalid_price))
-print("Negative product stocks: ", len(invalid_stock))
-print("Inactive vendors: ", len(inactive_vendors))
-print("Products from inactive vendors: ", len(inactive_supplier_products))
-
 ## Loading sales
 
 sales = pd.read_sql("SELECT * FROM sales", engine)
@@ -72,4 +66,80 @@ sales_customer = sales.merge(
     customers, on="customer_id", how="left", suffixes=("_sales", "_customer")
 )
 invalid_sales_customers = sales_customer[sales_customer["customer_name"].isnull()]
-print(invalid_sales_customers)
+sales_product = sales.merge(
+    products, on="product_id", how="left", suffixes=("_sales", "_product")
+)
+invalid_sales_products = sales_product[sales_product["product_name"].isnull()]
+invalid_sales_quantity = sales[sales["quantity"] < 0]
+
+## Final Reporting
+print("Missing customer emails: ", len(missing_email))
+print("Duplidated customers: ", len(duplicate_customers))
+print("Negative product prices: ", len(invalid_price))
+print("Negative product stocks: ", len(invalid_stock))
+print("Inactive vendors: ", len(inactive_vendors))
+print("Products from inactive vendors: ", len(inactive_supplier_products))
+print("Sales with invalid customers: ", len(invalid_sales_customers))
+print("Sales with invalid products:", len(invalid_sales_products))
+
+report = [
+    {
+        "check": "Missing customer emails",
+        "issues": len(missing_email),
+        "status": "PASS" if len(missing_email) == 0 else "REVIEW",
+    },
+    {
+        "check": "Duplicate customers",
+        "issues": len(duplicate_customers),
+        "status": "PASS" if len(duplicate_customers) == 0 else "REVIEW",
+    },
+    {
+        "check": "Negative product prices",
+        "issues": len(invalid_price),
+        "status": "PASS" if len(invalid_price) == 0 else "REVIEW",
+    },
+    {
+        "check": "Negative product stock",
+        "issues": len(invalid_stock),
+        "status": "PASS" if len(invalid_stock) == 0 else "REVIEW",
+    },
+    {
+        "check": "Inactive vendors",
+        "issues": len(inactive_vendors),
+        "status": "PASS" if len(inactive_vendors) == 0 else "REVIEW",
+    },
+    {
+        "check": "Invalid supplier references",
+        "issues": len(invalid_suppliers),
+        "status": "PASS" if len(invalid_suppliers) == 0 else "REVIEW",
+    },
+    {
+        "check": "Products from inactive vendors",
+        "issues": len(inactive_supplier_products),
+        "status": "PASS" if len(inactive_supplier_products) == 0 else "REVIEW",
+    },
+    {
+        "check": "Inactive customers",
+        "issues": len(inactive_customers),
+        "status": "PASS" if len(inactive_customers) == 0 else "REVIEW",
+    },
+    {
+        "check": "Sales with invalid customers",
+        "issues": len(invalid_sales_customers),
+        "status": "PASS" if len(invalid_sales_customers) == 0 else "REVIEW",
+    },
+    {
+        "check": "Sales with invalid products",
+        "issues": len(invalid_sales_products),
+        "status": "PASS" if len(invalid_sales_products) == 0 else "REVIEW",
+    },
+    {
+        "check": "Negative sales quantities",
+        "issues": len(invalid_sales_quantity),
+        "status": "PASS" if len(invalid_sales_quantity) == 0 else "REVIEW",
+    },
+]
+
+report_df = pd.DataFrame(report)
+print(report_df)
+report_df.to_csv("data_quality_report.csv", index=False)
