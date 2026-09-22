@@ -1,18 +1,21 @@
 import os
+import pandas as pd
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
 
 load_dotenv()
-
-import pandas as pd
-import psycopg2
-
-connection = psycopg2.connect(
-    host="DB_HOST",
-    database="DB_NAME",
-    user="DB_USER",
-    password="DB_PASSWORD",
+db_url = URL.create(
+    "postgresql+psycopg2",
+    username=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    host=os.getenv("DB_HOST"),
+    database=os.getenv("DB_NAME"),
 )
-customers = pd.read_sql("SELECT * FROM customers", connection)
+
+engine = create_engine(db_url)
+
+customers = pd.read_sql("SELECT * FROM customers", engine)
 
 ## checking length of the database
 
@@ -29,15 +32,15 @@ duplicate_customers = customers[
 
 ## Loading products
 
-products = pd.read_sql("SELECT * FROM products", connection)
+products = pd.read_sql("SELECT * FROM products", engine)
 
 invalid_price = products[products["unit_price"] < 0]
 
 invalid_stock = products[products["stock_quantity"] < 0]
 
-vendors = pd.read_sql("SELECT * FROM vendors", connection)
+vendors = pd.read_sql("SELECT * FROM vendors", engine)
 
-inavtive_vendors = vendors[vendors["status"] == "Inactive"]
+inactive_vendors = vendors[vendors["status"] == "Inactive"]
 
 product_vendor = products.merge(
     vendors,
@@ -59,5 +62,14 @@ print("Missing customer emails: ", len(missing_email))
 print("Duplidated customers: ", len(duplicate_customers))
 print("Negative product prices: ", len(invalid_price))
 print("Negative product stocks: ", len(invalid_stock))
-print("Inactive vendors: ", len(inavtive_vendors))
+print("Inactive vendors: ", len(inactive_vendors))
 print("Products from inactive vendors: ", len(inactive_supplier_products))
+
+## Loading sales
+
+sales = pd.read_sql("SELECT * FROM sales", engine)
+sales_customer = sales.merge(
+    customers, on="customer_id", how="left", suffixes=("_sales", "_customer")
+)
+invalid_sales_customers = sales_customer[sales_customer["customer_name"].isnull()]
+print(invalid_sales_customers)
