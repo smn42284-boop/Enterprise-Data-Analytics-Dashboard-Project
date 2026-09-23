@@ -142,4 +142,4 @@ report = [
 
 report_df = pd.DataFrame(report)
 print(report_df)
-report_df.to_csv("data_quality_report.csv", index=False)
+report_df.to_csv("python/output/data_quality_report.csv", index=False)
